@@ -19,14 +19,21 @@ s3 = boto3.client(
 local_directory = "upload_folder"
 destination = "remote_upload_folder"
 
-for root, dirs, files in os.walk(local_directory):
-    for filename in files:
-        # construct the full local path
-        local_path = os.path.join(root, filename)
+def upload_all_files(local_directory: str, destination: str, bucket: str):
+    for root, dirs, files in os.walk(local_directory):
+        for filename in files:
+            with open(os.path.join(root, filename), 'rb') as f:
+                s3.put_object(Bucket=bucket ,Body=f, Key=f'{destination}/{filename}')
 
-        # construct the full Dropbox path
-        relative_path = os.path.relpath(local_path, local_directory)
-        s3_path = os.path.normpath(destination + "/" + filename + "/")
+def generate_permenant_link(path: str, bucket_name: str, monthes = 6):
+    return s3.generate_presigned_url(
+        "get_object",
+        Params={"Bucket": bucket_name, "Key": path},
+        ExpiresIn=monthes * 30 * 24 * 60 * 60,
+    )
 
-        with open(local_path, 'rb') as f:
-            s3.put_object(Bucket=LIARA_BUCKET_NAME ,Body=f, Key=f'{destination}/{filename}')
+def list_all_objects(bucket: str):
+    list = []
+    files = s3.list_objects(Bucket=bucket)
+    for file in files["Contents"]:
+        list.append(file["Key"])
